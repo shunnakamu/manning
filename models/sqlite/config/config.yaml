@@ -1,0 +1,7 @@
+tables:
+  test:
+    name: test
+    columns :
+      - test_id INTEGER
+      - test_str TEXT
+      - test_score REAL
