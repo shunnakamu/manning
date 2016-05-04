@@ -39,7 +39,7 @@ def dict_factory(cursor, row):
     return d
 
 
-class SQLiteBase:
+class SQLiteBase(object):
     def __init__(self, database_file, yaml_file_path, table_name):
         self.yaml_file_path = yaml_file_path
         self.database_file = database_file
@@ -59,7 +59,12 @@ class SQLiteBase:
         conn = self.get_connection()
         conn.execute("DROP TABLE IF EXISTS %s" % self.table_name)
         columns_str = ", ".join(self.columns)
-        conn.execute("CREATE TABLE %s (%s)" % (self.table_name, columns_str))
+        query = "CREATE TABLE %s (%s)" % (self.table_name, columns_str)
+        try:
+            conn.execute(query)
+        except sqlite3.OperationalError:
+            print query
+            raise sqlite3.OperationalError(query)
 
     def import_file_to_sqlite(self, file_path, tmp_file_mode=True, nt_mode=False):
         if tmp_file_mode:

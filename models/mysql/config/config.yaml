@@ -1,0 +1,20 @@
+connection:
+  host: localhost
+  db: test
+  port: 3306
+  user: root
+  pw: ""
+
+tables:
+  test:
+    name: test
+    columns :
+      - id INT NOT NULL PRIMARY KEY AUTO_INCREMENT
+      - test_str TEXT
+      - test_score FLOAT
+  test2:
+    name: test2
+    columns :
+      - test_id INT
+      - test_str TEXT
+      - test_score FLOAT
