@@ -23,8 +23,10 @@ class TestSQLiteBase(unittest.TestCase):
 
     def test_get_existing_table_column(self):
         # prepare data
-        db_file = self.test_dir_path + "test.db"
-        sqlite_base = SQLiteBase.SQLiteBase(database_file=db_file, yaml_file_path=self.yaml_file_path, table_name="test")
+        db_file = self.data_path + "test.db"
+        sqlite_base = SQLiteBase.SQLiteBase(
+            database_file=db_file, yaml_file_path=self.yaml_file_path, table_name="test"
+        )
         sqlite_base.create_table()
 
         result_columns = sqlite_base.get_existing_table_column()
@@ -34,7 +36,9 @@ class TestSQLiteBase(unittest.TestCase):
 
     def test_check_schema_not_changed(self):
         db_file = self.test_dir_path + "test.db"
-        sqlite_base = SQLiteBase.SQLiteBase(database_file=db_file, yaml_file_path=self.yaml_file_path, table_name="test")
+        sqlite_base = SQLiteBase.SQLiteBase(
+            database_file=db_file, yaml_file_path=self.yaml_file_path,table_name="test"
+        )
         sqlite_base.create_table()
 
         result_list = []
@@ -43,6 +47,25 @@ class TestSQLiteBase(unittest.TestCase):
         result_list.append(sqlite_base.check_schema_not_changed())
 
         expected_list = [True, False]
+
+        os.remove(db_file)
+        self.assertEqual(result_list, expected_list)
+
+    def test_import_file_to_sqlite_csv(self):
+        db_file = self.data_path + "test.db"
+        csv_data_file_path = self.data_path + "sqlite_csv_with_header.csv"
+        sqlite_base = SQLiteBase.SQLiteBase(
+            database_file=db_file, yaml_file_path=self.yaml_file_path, table_name="test"
+        )
+        sqlite_base.create_table()
+        sqlite_base.import_file_to_sqlite(
+            file_path=csv_data_file_path, csv_flg=True, ignore_header=True
+        )
+        result_list = sqlite_base.find_all()
+        expected_list = [
+            {"test_id": 1, "test_str": u"ラーメン", "test_score": 0.01},
+            {"test_id": 2, "test_str": u"餃子", "test_score": 12.345}
+        ]
 
         os.remove(db_file)
         self.assertEqual(result_list, expected_list)

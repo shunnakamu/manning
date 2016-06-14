@@ -64,14 +64,45 @@ class SQLiteBase(object):
             conn.execute(query)
         except sqlite3.OperationalError:
             print query
+            print traceback.print_exc()
             raise sqlite3.OperationalError(query)
 
-    def import_file_to_sqlite(self, file_path, tmp_file_mode=True, nt_mode=False):
+    def import_file_to_sqlite(self, file_path, csv_flg=False, ignore_header=False, tmp_file_mode=True, nt_mode=False, directory_flg=False):
+        if directory_flg:
+            if os.path.isdir(file_path):
+                file_list = os.listdir(file_path)
+                for file_name in file_list:
+                    self.import_file_to_sqlite(
+                        file_path="%s/%s" % (file_path, file_name), csv_flg=csv_flg,
+                        tmp_file_mode=tmp_file_mode,
+                        nt_mode=nt_mode, directory_flg=False
+                    )
+            else:
+                raise RuntimeError("%s is not a directory" % file_path)
+            return True
+
+        if nt_mode or os.name == 'nt':
+            file_path = file_path.replace("\\", "\\\\")
+
+        if csv_flg:
+            # decode s-jis & encode utf-8
+            temp_converted_file = tempfile.NamedTemporaryFile(mode='w', prefix="utf_converted_", delete=False)
+            for line in open(file_path):
+                if ignore_header:
+                    ignore_header = False
+                else:
+                    temp_converted_file.write(unicode(line, 's-jis').encode('utf-8'))
+            temp_converted_file.close()
+            file_path = temp_converted_file.name
+            if nt_mode or os.name == 'nt':
+                file_path = file_path.replace("\\", "\\\\")
+
         if tmp_file_mode:
             temp = tempfile.NamedTemporaryFile(mode='w', prefix="sqlite_", delete=False)
-            temp.write(".mode tabs\n")
-            if nt_mode:
-                file_path = file_path.replace("\\", "\\\\")
+            if csv_flg:
+                temp.write(".mode csv\n")
+            else:
+                temp.write(".mode tabs\n")
             temp.write(".import \"%s\" %s" % (file_path, self.table_name))
             temp.close()
             command = "sqlite3 %s < %s" % (self.database_file, temp.name)
@@ -82,6 +113,9 @@ class SQLiteBase(object):
                 self.database_file, file_path, self.table_name
             )
             os.system(command)
+
+        if csv_flg:
+            os.remove(temp_converted_file.name)
 
     def get_column_name_list(self):
         columns = get_table_columns(self.yaml_file_path, self.table_name)
@@ -148,7 +182,13 @@ class SQLiteBase(object):
             conn.executemany(query, value_list)
         except sqlite3.ProgrammingError:
             print query
-            print value_list
+            # print value_list
+            for value in value_list:
+                if type(value) == list:
+                    for value_value in value:
+                        print value_value
+                else:
+                    value
             print traceback.format_exc()
             raise sqlite3.ProgrammingError
         conn.commit()
