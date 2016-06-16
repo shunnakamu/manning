@@ -59,12 +59,13 @@ class TestSQLiteBase(unittest.TestCase):
         )
         sqlite_base.create_table()
         sqlite_base.import_file_to_sqlite(
-            file_path=csv_data_file_path, csv_flg=True, ignore_header=True
+            file_path=csv_data_file_path, shift_jis_flg=True, csv_flg=True, ignore_header=True
         )
         result_list = sqlite_base.find_all()
         expected_list = [
             {"test_id": 1, "test_str": u"ラーメン", "test_score": 0.01},
-            {"test_id": 2, "test_str": u"餃子", "test_score": 12.345}
+            {"test_id": 2, "test_str": u"餃子", "test_score": 12.345},
+            {"test_id": 3, "test_str": u"高知食糧株式会社 ", "test_score": 123}
         ]
 
         os.remove(db_file)

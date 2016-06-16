@@ -67,7 +67,10 @@ class SQLiteBase(object):
             print traceback.print_exc()
             raise sqlite3.OperationalError(query)
 
-    def import_file_to_sqlite(self, file_path, csv_flg=False, ignore_header=False, tmp_file_mode=True, nt_mode=False, directory_flg=False):
+    def import_file_to_sqlite(
+        self, file_path, csv_flg=False, shift_jis_flg=False, ignore_header=False, tmp_file_mode=True,
+        nt_mode=False, directory_flg=False
+    ):
         if directory_flg:
             if os.path.isdir(file_path):
                 file_list = os.listdir(file_path)
@@ -84,14 +87,24 @@ class SQLiteBase(object):
         if nt_mode or os.name == 'nt':
             file_path = file_path.replace("\\", "\\\\")
 
-        if csv_flg:
+        if ignore_header and not shift_jis_flg:
+            raise RuntimeError("unsupported operation with ignore_header:True and shift_jis_flg:False")
+
+        if shift_jis_flg:
             # decode s-jis & encode utf-8
             temp_converted_file = tempfile.NamedTemporaryFile(mode='w', prefix="utf_converted_", delete=False)
             for line in open(file_path):
                 if ignore_header:
                     ignore_header = False
                 else:
-                    temp_converted_file.write(unicode(line, 's-jis').encode('utf-8'))
+                    try:
+                        print line
+                        temp_converted_file.write(unicode(line, 'shift-jis').encode('utf-8'))
+                    except UnicodeDecodeError:
+                        print line
+                        print unicode(line, 'shift-jis')
+                        print traceback.format_exc()
+                        raise UnicodeDecodeError("failed to encode. please check data")
             temp_converted_file.close()
             file_path = temp_converted_file.name
             if nt_mode or os.name == 'nt':
@@ -114,7 +127,7 @@ class SQLiteBase(object):
             )
             os.system(command)
 
-        if csv_flg:
+        if shift_jis_flg:
             os.remove(temp_converted_file.name)
 
     def get_column_name_list(self):
@@ -125,7 +138,7 @@ class SQLiteBase(object):
             column_list.append(column_str)
         return column_list
 
-    def execute_query(self, query, dict_flg=False, str_flg=False):
+    def execute_query(self, query, dict_flg=False, str_flg=False, insert_flg=False):
         if dict_flg:
             conn = self.get_dict_factory_connection()
         else:
@@ -135,10 +148,15 @@ class SQLiteBase(object):
         cur = conn.cursor()
         try:
             cur.execute(query)
+            if insert_flg:
+                conn.commit()
         except sqlite3.OperationalError:
             print query
             print traceback.format_exc()
             raise sqlite3.OperationalError
+        if insert_flg:
+            cur.close()
+            return True
         result = cur.fetchall()
         cur.close()
         return result
