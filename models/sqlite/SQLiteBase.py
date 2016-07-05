@@ -55,6 +55,13 @@ class SQLiteBase(object):
         conn.row_factory = dict_factory
         return conn
 
+    def get_table_column_tuple(self):
+        column_list = []
+        for column in self.columns:
+            column_str = column.split(" ")[0]
+            column_list.append(column_str)
+        return tuple(column_list)
+
     def create_table(self):
         conn = self.get_connection()
         conn.execute("DROP TABLE IF EXISTS %s" % self.table_name)
