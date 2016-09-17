@@ -5,3 +5,12 @@ tables:
       - test_id INTEGER
       - test_str TEXT
       - test_score REAL
+
+  test_no_column_type:
+    name: test_no_column_type
+    columns:
+      - id
+      - name
+      - score
+      - datetime
+      - phone_number

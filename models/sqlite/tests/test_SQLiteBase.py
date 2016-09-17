@@ -71,5 +71,24 @@ class TestSQLiteBase(unittest.TestCase):
         os.remove(db_file)
         self.assertEqual(result_list, expected_list)
 
+    def test_get_column_type_list(self):
+        db_file = self.data_path + "test.db"
+        tsv_file_path = self.data_path + "test_no_column_type.tsv"
+        sqlite_base = SQLiteBase.SQLiteBase(
+            database_file=db_file, yaml_file_path=self.yaml_file_path, table_name="test_no_column_type"
+        )
+        sqlite_base.create_table()
+        sqlite_base.import_file_to_sqlite(file_path=tsv_file_path)
+        column_type_list = sqlite_base.get_column_type_list()
+        expected_list = [
+            "id INTEGER",
+            "name TEXT",
+            "score REAL",
+            "datetime TEXT",
+            "phone_number TEXT"
+        ]
+        self.assertEqual(column_type_list, expected_list)
+
+
 if __name__ == "__main__":
     unittest.main()

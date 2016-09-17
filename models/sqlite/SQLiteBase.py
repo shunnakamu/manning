@@ -39,6 +39,50 @@ def dict_factory(cursor, row):
     return d
 
 
+def get_column_type(column_value_list):
+    column_type_list = []
+    for column_value_item in column_value_list:
+        if column_value_item not in [u"", ""]:
+            try:
+                tmp_value = int(column_value_item)
+                column_type_list.append("INTEGER")
+                continue
+            except ValueError:
+                pass
+            try:
+                tmp_value = float(column_value_item)
+                column_type_list.append("REAL")
+            except ValueError:
+                column_type_list.append("TEXT")
+
+    if all([True if x == "INTEGER" else False for x in column_type_list]):
+        return "INTEGER"
+    if all([True if x in ["REAL", "INTEGER"] else False for x in column_type_list]):
+        return "REAL"
+    return "TEXT"
+
+
+def decode_file(file_path, encode, ignore_header, nt_mode):
+    # decode s-jis & encode utf-8
+    temp_converted_file = tempfile.NamedTemporaryFile(mode='w', prefix="utf_converted_", delete=False)
+    for line in open(file_path):
+        if ignore_header:
+            ignore_header = False
+        else:
+            try:
+                temp_converted_file.write(unicode(line, encode).encode('utf-8'))
+            except UnicodeDecodeError:
+                print line
+                print unicode(line, encode)
+                print traceback.format_exc()
+                raise UnicodeDecodeError("failed to encode. please check data")
+    temp_converted_file.close()
+    file_path = temp_converted_file.name
+    if nt_mode or os.name == 'nt':
+        file_path = file_path.replace("\\", "\\\\")
+    return file_path
+
+
 class SQLiteBase(object):
     def __init__(self, database_file, yaml_file_path, table_name):
         self.yaml_file_path = yaml_file_path
@@ -75,7 +119,7 @@ class SQLiteBase(object):
             raise sqlite3.OperationalError(query)
 
     def import_file_to_sqlite(
-        self, file_path, csv_flg=False, shift_jis_flg=False, ignore_header=False, tmp_file_mode=True,
+        self, file_path, csv_flg=False, shift_jis_flg=False, cp932_flg=False, ignore_header=False, tmp_file_mode=True,
         nt_mode=False, directory_flg=False
     ):
         if directory_flg:
@@ -94,28 +138,14 @@ class SQLiteBase(object):
         if nt_mode or os.name == 'nt':
             file_path = file_path.replace("\\", "\\\\")
 
-        if ignore_header and not shift_jis_flg:
+        if ignore_header and not shift_jis_flg and not cp932_flg:
             raise RuntimeError("unsupported operation with ignore_header:True and shift_jis_flg:False")
 
         if shift_jis_flg:
-            # decode s-jis & encode utf-8
-            temp_converted_file = tempfile.NamedTemporaryFile(mode='w', prefix="utf_converted_", delete=False)
-            for line in open(file_path):
-                if ignore_header:
-                    ignore_header = False
-                else:
-                    try:
-                        print line
-                        temp_converted_file.write(unicode(line, 'shift-jis').encode('utf-8'))
-                    except UnicodeDecodeError:
-                        print line
-                        print unicode(line, 'shift-jis')
-                        print traceback.format_exc()
-                        raise UnicodeDecodeError("failed to encode. please check data")
-            temp_converted_file.close()
-            file_path = temp_converted_file.name
-            if nt_mode or os.name == 'nt':
-                file_path = file_path.replace("\\", "\\\\")
+            file_path = decode_file(file_path, "shift-jis", ignore_header, nt_mode)
+
+        if cp932_flg:
+            file_path = decode_file(file_path, "cp932", ignore_header, nt_mode)
 
         if tmp_file_mode:
             temp = tempfile.NamedTemporaryFile(mode='w', prefix="sqlite_", delete=False)
@@ -270,3 +300,13 @@ class SQLiteBase(object):
         result_columns = self.get_existing_table_column()
         expected_columns = self.get_column_name_list()
         return result_columns == expected_columns
+
+    def get_column_type_list(self):
+        column_list = self.get_column_name_list()
+        column_type_list = []
+        for column_item in column_list:
+            query = "SELECT DISTINCT %s FROM %s" % (column_item, self.table_name)
+            column_value_list = self.execute_query_single_column(query=query)
+            column_type = get_column_type(column_value_list=column_value_list)
+            column_type_list.append("%s %s" % (column_item, column_type))
+        return column_type_list
