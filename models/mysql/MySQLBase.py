@@ -17,6 +17,15 @@ def load_config(yaml_file_path):
     return config
 
 
+def get_table_columns(yaml_file_path, table_name):
+    config = load_config(yaml_file_path)
+    try:
+        table_columns = config["tables"][table_name]["columns"]
+    except KeyError:
+        raise KeyError("table columns for %s not found in config" % table_name)
+    return table_columns
+
+
 class MySQLBase(object):
     def __init__(self, yaml_file_path, table_name):
         self.yaml_file_path = yaml_file_path
@@ -133,3 +142,53 @@ class MySQLBase(object):
     def truncate_table(self):
         query = "TRUNCATE TABLE %s" % self.table_name
         return self.execute_query(query=query)
+
+    def get_column_name_list(self):
+        columns = get_table_columns(self.yaml_file_path, self.table_name)
+        column_list = []
+        for column in columns:
+            column_str = column.split(" ")[0]
+            column_list.append(column_str)
+        return column_list
+
+    def bulk_insert(self, value_list):
+        cursor = self.get_cursor(dict_cursor=False)
+        column_name_list = self.get_column_name_list()
+        columns_str = ", ".join(column_name_list)
+        prepared_list = []
+        for i in range(len(self.columns)):
+            prepared_list.append("%%s")
+        prepared_str = ", ".join(prepared_list)
+        query = "INSERT INTO %s (%s) VALUES (%s)" % (self.table_name, columns_str, prepared_str)
+        try:
+            cursor.executemany(query, value_list)
+        except TypeError as e:
+            print query
+            # print value_list
+            for value in value_list:
+                if type(value) == list:
+                    for value_value in value:
+                        print value_value
+                else:
+                    value
+            print traceback.format_exc()
+            raise e
+        cursor.commit()
+        return cursor.close()
+
+    def bulk_insert_with_query(self, query, value_list):
+        cursor = self.get_cursor(dict_cursor=False)
+        try:
+            cursor.executemany(query, value_list)
+        except (TypeError, _mysql_exceptions.OperationalError) as e:
+            print query
+            # print value_list
+            for value in value_list:
+                if type(value) == list:
+                    for value_value in value:
+                        print value_value
+                else:
+                    value
+            print traceback.format_exc()
+            raise e
+        return True

@@ -164,8 +164,8 @@ class SQLiteBase(object):
             )
             os.system(command)
 
-        if shift_jis_flg:
-            os.remove(temp_converted_file.name)
+        if (shift_jis_flg or cp932_flg) and not tmp_file_mode:
+            os.remove(temp.name)
 
     def get_column_name_list(self):
         columns = get_table_columns(self.yaml_file_path, self.table_name)
@@ -235,7 +235,7 @@ class SQLiteBase(object):
         query = "INSERT INTO %s (%s) VALUES (%s)" % (self.table_name, columns_str, prepared_str)
         try:
             conn.executemany(query, value_list)
-        except sqlite3.ProgrammingError:
+        except (sqlite3.ProgrammingError, sqlite3.InterfaceError) as e:
             print query
             # print value_list
             for value in value_list:
@@ -245,7 +245,7 @@ class SQLiteBase(object):
                 else:
                     value
             print traceback.format_exc()
-            raise sqlite3.ProgrammingError
+            raise e
         conn.commit()
         return conn.close()
 
@@ -253,7 +253,7 @@ class SQLiteBase(object):
         conn = self.get_connection()
         try:
             conn.executemany(query, data_list)
-        except sqlite3.OperationalError:
+        except (sqlite3.OperationalError, sqlite3.InterfaceError):
             print query
             print data_list
             print traceback.format_exc()

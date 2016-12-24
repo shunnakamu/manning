@@ -59,6 +59,24 @@ class TestMySQLBase(unittest.TestCase):
             result_list[1]["test_score"] == 1.234
         ]))
 
+    def test_bulk_insert_with_query(self):
+        table_name = "test"
+        mysql_base = MySQLBase.MySQLBase(yaml_file_path=self.yaml_file_path, table_name=table_name)
+        query = "INSERT INTO %s (test_str, test_score) VALUES (%%s, %%s)" % mysql_base.table_name
+        value_list = [
+            ["餃子", 0.8],
+            ["ラーメン", 1.234],
+        ]
+        mysql_base.bulk_insert_with_query(query, value_list)
+        result_list = mysql_base.find_all()
+
+        self.assertTrue(all([
+            result_list[0]["test_str"] == u"餃子",
+            result_list[0]["test_score"] == 0.8,
+            result_list[1]["test_str"] == u"ラーメン",
+            result_list[1]["test_score"] == 1.234
+        ]))
+
 
 if __name__ == "__main__":
     unittest.main()
