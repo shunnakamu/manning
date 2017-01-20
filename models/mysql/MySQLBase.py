@@ -152,7 +152,6 @@ class MySQLBase(object):
         return column_list
 
     def bulk_insert(self, value_list):
-        cursor = self.get_cursor(dict_cursor=False)
         column_name_list = self.get_column_name_list()
         columns_str = ", ".join(column_name_list)
         prepared_list = []
@@ -160,27 +159,16 @@ class MySQLBase(object):
             prepared_list.append("%%s")
         prepared_str = ", ".join(prepared_list)
         query = "INSERT INTO %s (%s) VALUES (%s)" % (self.table_name, columns_str, prepared_str)
-        try:
-            cursor.executemany(query, value_list)
-        except TypeError as e:
-            print query
-            # print value_list
-            for value in value_list:
-                if type(value) == list:
-                    for value_value in value:
-                        print value_value
-                else:
-                    value
-            print traceback.format_exc()
-            raise e
-        cursor.commit()
-        return cursor.close()
+        return self.bulk_insert_with_query(query=query, value_list=value_list)
 
     def bulk_insert_with_query(self, query, value_list):
-        cursor = self.get_cursor(dict_cursor=False)
+        con = self.get_connection()
+        cur = con.cursor()
         try:
-            cursor.executemany(query, value_list)
-        except (TypeError, _mysql_exceptions.OperationalError) as e:
+            cur.executemany(query, value_list)
+            con.commit()
+            cur.close()
+        except (TypeError, MySQLdb.OperationalError) as e:
             print query
             # print value_list
             for value in value_list:
@@ -191,4 +179,4 @@ class MySQLBase(object):
                     value
             print traceback.format_exc()
             raise e
-        return True
+        return con.close()
