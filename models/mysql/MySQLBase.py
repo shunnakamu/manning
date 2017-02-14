@@ -63,7 +63,7 @@ class MySQLBase(object):
                 db=self.config["connection"]["db"],
                 user=self.config["connection"]["user"],
                 passwd=self.config["connection"]["pw"],
-                charset="utf8"
+                charset="utf8mb4"
             )
         except MySQLdb.OperationalError:
             print traceback.format_exc()
@@ -86,6 +86,13 @@ class MySQLBase(object):
         result_list = list(cursor.fetchall())
         self.conn.commit()
         cursor.close()
+        return result_list
+
+    def execute_query_single_column(self, query):
+        result_raw = self.execute_query(query, dict_flg=False)
+        result_list = []
+        for result_item in result_raw:
+            result_list.append(result_item[0])
         return result_list
 
     def create_table(self):
