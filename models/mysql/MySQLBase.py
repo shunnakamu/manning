@@ -65,8 +65,9 @@ class MySQLBase(object):
                 passwd=self.config["connection"]["pw"],
                 charset="utf8mb4"
             )
-        except MySQLdb.OperationalError:
+        except MySQLdb.OperationalError as e:
             print traceback.format_exc()
+            raise e
         return conn
 
     def get_cursor(self, dict_cursor=True):
@@ -75,14 +76,28 @@ class MySQLBase(object):
         else:
             return self.conn.cursor()
 
+    def update_with_query_and_data(self, query, data_tuple):
+        cursor = self.get_cursor()
+        try:
+            cursor.execute(query, data_tuple)
+        except (MySQLdb.OperationalError, MySQLdb.ProgrammingError, MySQLdb.InterfaceError, TypeError) as e:
+            print query
+            print data_tuple
+            print [type(x) for x in data_tuple]
+            print traceback.format_exc()
+            raise e
+        self.conn.commit()
+        cursor.close()
+        return True
+
     def execute_query(self, query, dict_flg=True):
         cursor = self.get_cursor(dict_cursor=dict_flg)
         try:
             cursor.execute(query)
-        except MySQLdb.OperationalError:
+        except (MySQLdb.OperationalError, MySQLdb.ProgrammingError, MySQLdb.InterfaceError) as e:
             print query
             print traceback.format_exc()
-            raise MySQLdb.OperationalError
+            raise e
         result_list = list(cursor.fetchall())
         self.conn.commit()
         cursor.close()
