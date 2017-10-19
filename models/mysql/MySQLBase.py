@@ -90,7 +90,7 @@ class MySQLBase(object):
         cursor.close()
         return True
 
-    def execute_query(self, query, dict_flg=True):
+    def execute_query(self, query, dict_flg=True, insert=False):
         cursor = self.get_cursor(dict_cursor=dict_flg)
         try:
             cursor.execute(query)
@@ -98,8 +98,11 @@ class MySQLBase(object):
             print query
             print traceback.format_exc()
             raise e
-        result_list = list(cursor.fetchall())
         self.conn.commit()
+        if insert:
+            cursor.close()
+            return cursor.lastrowid
+        result_list = list(cursor.fetchall())
         cursor.close()
         return result_list
 
